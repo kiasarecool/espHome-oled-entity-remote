@@ -13,16 +13,17 @@ substitutions:
   api_key: ""
   encryption_key: ""
   ota_key: ""
+  board:type: "esp32dev"
 
 
 #############################
-#     end input             #
+#     end user input             #
 #############################
 esphome:
   name: esp32-menu-oled
 
 esp32:
-  board: esp32dev
+  board: ${board_type}
   framework:
     type: arduino
 
