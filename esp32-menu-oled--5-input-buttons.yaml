@@ -1,6 +1,23 @@
 substitutions:
   esp_name: "Remote"
+  hide_buttons_in_homeassistant: "true"
+  top_entity_id: "bedroom_lamp_switch"
+  temp_sensor_1_entity: "sensor.average_indoor_temperature"
+  temp_sensor_2_entity: "sensor.bedroom_temperature"
+  sda_pin: "22"
+  scl_pin: "23"
+  display_platform: "ssd1306_i2c"
+  display_model: "SH1106 128x64"
+  display_address: "0x3C"
+  display_brightness: "100%"
+  api_key: ""
+  encryption_key: ""
+  ota_key: ""
 
+
+#############################
+#     end input             #
+#############################
 esphome:
   name: esp32-menu-oled
 
@@ -15,103 +32,110 @@ logger:
 # Enable Home Assistant API
 api:
   encryption:
-    key: "Xeut6ZwHEVnJsw17x9a43EA0ODIQ3HzHeCmzJtwszwc="
-
+    key: "${encryption_key}"
 ota:
-  password: "e06d8a7f2a0e4dce779d560120aae271"
-
+  password: "${ota_key}"
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "${esp_name}"
     password: ""
 captive_portal:
-
-
-
-
 globals: 
   - id: wifi_connection
     type: bool
     restore_value: no
     initial_value: "false"
+# Sensors
 sensor:
   - platform: homeassistant
-    entity_id: sensor.average_indoor_temperature
-    id: avg_temp
+    entity_id: ${temp_sensor_1_entity}
+    id: temp_sensor_1_id
     internal: true
   - platform: homeassistant
-    entity_id: sensor.bedroom_temperature
-    id: temp_br
+    entity_id: ${temp_sensor_2_entity}
+    id: temp_sensor_2_id
     internal: true
+
+#binary sensors (on/off only sensors)
 binary_sensor:
+#top entity
   - platform: homeassistant
-    id: br_lamp
-    entity_id: light.bedroom_lamp
+    id: top_entity_id
+    entity_id: ${up_button_entity}
     internal: true
+    #Left side entity
   - platform: homeassistant
     id: br_tv
     entity_id: switch.samsung_8_series_55
     internal: true
+    #Right side entity
   - platform: homeassistant
     id: flood
     entity_id: switch.back_flood_lights_switch_1
     internal: true
+    #Bottom entity
   - platform: homeassistant
     id: bunny
     entity_id: switch.office_light
     internal: true
-### Joystick button
+### Joystick  4 way and select button
   - platform: gpio
     pin: 5
-    name: "${esp_name} Select"
+    name: "${esp_name} Select Button"
     id: ctr
     on_press:
       - display.page.show_next: oled
-    internal: true
+    internal: ${hide_buttons_in_homeassistant}
   - platform: gpio
     pin: 21 
-    name: "${esp_name} Left"
+    name: "${esp_name} Left Button"
     id: lft
+#### v Comment out between hash marks to use HA automations for buttons
     on_press:
       homeassistant.service:
         service: switch.toggle
         data:
           entity_id: switch.samsung_8_series_55
-    internal: true
+###############^
+    internal: ${hide_buttons_in_homeassistant}
   - platform: gpio
     pin: 18
-    name: "${esp_name} Right"
+    name: "${esp_name} Right Button"
     id: rt
+####v Comment out between hash marks to use HA automations for buttons
     on_press:
       homeassistant.service:
         service: switch.toggle
         data:
           entity_id: switch.back_flood_lights_switch_1
-    internal: true
+#######^
+    internal: ${hide_buttons_in_homeassistant}
   - platform: gpio
     pin: 19
-    name: "${esp_name} Down"
+    name: "${esp_name} Down Button"
     id: dwn
+####v Comment out between hash marks to use HA automations for buttons
     on_press:
       homeassistant.service:
         service: switch.toggle
         data:
           entity_id: switch.office_light
-    internal: true
+############################^         
+    internal: ${hide_buttons_in_homeassistant}
   - platform: gpio
     pin: 17
-    name: "${esp_name} Up"
+    name: "${esp_name} Up Button"
     id: up
+####v Comment out between hash marks to use HA automations for buttons
     on_press:
       homeassistant.service:
         service: light.toggle
         data:
-          entity_id: light.bedroom_lamp
-    internal: true
+          entity_id: ${up_button_entity}
+######################^
+    internal: ${hide_buttons_in_homeassistant}
 switch:
   - platform: template
     name: "${esp_name} OLED"
@@ -120,10 +144,11 @@ switch:
       - lambda: id(oled).turn_on();
     turn_off_action:
       - lambda: id(oled).turn_off();
-
+#Time sensor
 time:
   - platform: homeassistant
     id: esptime
+#timer for wifi refresh 
 interval: 
   - interval: 10s
     then:
@@ -136,21 +161,22 @@ interval:
           else:
             - lambda: |-
                 id(wifi_connection) = false;
+#Fonts
 font:
   - file: 'fonts/mdi.ttf'
     id: mdi11
     size: 26
     glyphs:
-      - "\U000F1B20"
-      - "\U000F1B1F"
-      - "\U000F07F4"
-      - "\U000F083A"
-      - "\U000F1987"
-      - "\U000F073A"
-      - "\U000F1A62"
-      - "\U000F1798"
-      - "\U000F1A61"
-      - "\U000F1797"
+      - "\U000F1B20" #Lamp on
+      - "\U000F1B1F" #lamp off
+      - "\U000F07F4" #tv on
+      - "\U000F083A" #tv off
+      - "\U000F1987" #flood light
+      - "\U000F073A" #cancel icon
+      - "\U000F1A62" # bunny off
+      - "\U000F1798" # Fan light on
+      - "\U000F1A61" # Bunny on
+      - "\U000F1797" #fan light off
   - file: "fonts/mdi.ttf"
     id: mdi2
     size: 17
@@ -172,6 +198,7 @@ font:
   - file: 'fonts/arial.ttf'
     id: font8
     size: 10
+#Graph settings
 graph:
   - id: oled_graph
     duration: 1h
@@ -180,18 +207,20 @@ graph:
     width: 124
     height: 46
     traces:
-      - sensor: temp_br
+      - sensor: temp_sensor_2_id
         line_type: DASHED
         line_thickness: 2
-      - sensor: avg_temp
+      - sensor: temp_sensor_1_id
         line_type: DOTTED
         line_thickness: 2
+#Optional animation GIF        
 animation:
   - file: "gif/stars2.gif"
     id: stars
+#i2c settings
 i2c:
-  sda: 22
-  scl: 23
+  sda: ${sda_pin}
+  scl: ${scl_pin}
 display:
   - platform: ssd1306_i2c
     model: "SH1106 128x64"
@@ -207,13 +236,15 @@ display:
           it.strftime(96, 1, id(font11), "%H:%M", id(esptime).now());
           it.line(94, 0, 94, 13);
           it.line(94, 13, 128, 13);
+
           // top section
-          if (id(br_lamp).state == (1)) {
-          it.print(40, 1, id(mdi11), "\U000F1B20");
+          if (id(top_entity_id).state == (1)) {
+          it.print(40, 1, id(mdi11), "\U000F1B20"); 
           } else {
           it.print(40, 1, id(mdi11), "\U000F1B1F");
           }
           it.print(42, 24, id(font8), "Bed");
+
           // left section
           if (id(br_tv).state == (1)) {
           it.print(1, 18, id(mdi11), "\U000F07F4");
@@ -221,6 +252,7 @@ display:
           it.print(1, 18, id(mdi11), "\U000F083A");
           }
           it.print(4, 40, id(font8), "T.V.");   
+
           // Right side
           if (id(flood).state == (1)) {
           it.print(74, 18, id(mdi11), "\U000F1987");
@@ -229,6 +261,7 @@ display:
           it.print(71, 12, id(mdi3), "\U000F073A");
           }
           it.print(75, 40, id(font8), "Flood");
+
           // bottom
           if (id(bunny).state == (1)) {
           it.print(31, 38, id(mdi11), "\U000F1A61");
@@ -237,6 +270,7 @@ display:
           it.print(31, 38, id(mdi11), "\U000F1A62");
           it.print(49, 40, id(mdi11), "\U000F1797");
           }
+          //wifi indicator
           it.printf(110, 44, id(mdi2), "%s", id(wifi_connection) ? "\U000F05A9" : "\U000F05AA");
           it.line(110, 42, 128, 42);
           it.line(110, 42, 110, 64);
